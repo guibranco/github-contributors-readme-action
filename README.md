@@ -4,6 +4,14 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]](LICENSE)
 
+> [!WARNING]
+> **This is a maintained fork of [akhilmhdh/contributors-readme-action](https://github.com/akhilmhdh/contributors-readme-action).**
+> The original repository is no longer receiving updates, so fixes are published here.
+>
+> **Bug fixed:** since `v2.3.11` the compiled `dist/index.js` (the file the action actually runs) closes the generated table with an opening `<tbody>` tag instead of `</tbody>`, producing invalid HTML in every README it updates. The source was fixed upstream in [PR #85](https://github.com/akhilmhdh/contributors-readme-action/pull/85), but `dist/` was never rebuilt; the rebuilt bundle was proposed in [PR #89](https://github.com/akhilmhdh/contributors-readme-action/pull/89), which was never merged.
+>
+> To use the fixed version, replace `akhilmhdh/contributors-readme-action` with `guibranco/github-contributors-readme-action` in your workflows.
+
 <br />
 
 <p align="center">
@@ -45,7 +53,7 @@ jobs:
           pull-requests: write
         steps:
             - name: Contribute List
-              uses: akhilmhdh/contributors-readme-action@v2.3.11
+              uses: guibranco/github-contributors-readme-action@v2.3.12
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -56,7 +64,7 @@ To add it to your existing workflow, **append** this to your current `.yml` work
 
 ```yml
 # add required write permission
-- uses: akhilmhdh/contributors-readme-action@v2.3.11
+- uses: guibranco/github-contributors-readme-action@v2.3.12
   env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -138,7 +146,7 @@ You can add these optional parameters in your action script to modify the appear
 ```yml
 - name: Contribute List
 # add required write permission
-  uses: akhilmhdh/contributors-readme-action@v2.3.11
+  uses: guibranco/github-contributors-readme-action@v2.3.12
   with:
       image_size: 100
 ```
