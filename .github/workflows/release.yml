@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# One release run at a time: two quick merges to main must not race each other
+# into computing (and tagging) the same version twice.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# `main` only accepts squash merges, so every push to main is a single commit
+# that lives on main itself. Tagging that commit keeps the tag reachable from
+# main, so GitVersion sees it on the next run and bumps past it. This is a
+# JavaScript action with dist/ committed to the repository, so there is nothing
+# to build or pin in a separate release PR: the commit on main is the release.
+jobs:
+  release:
+    name: Tag and publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Test
+        run: npm test
+
+      # Never tag a commit whose dist/ does not match its source: the tag is
+      # what workflows run, and they run dist/index.js.
+      - name: 🔍 Verify dist/ is up to date
+        run: |
+          npm run build
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error::dist/ on main is out of date. Run 'npm run build', commit the result and re-run this workflow."
+            git status --short -- dist/
+            exit 1
+          fi
+
+      - name: 🔧 Install GitVersion
+        uses: gittools/actions/gitversion/setup@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+        with:
+          versionSpec: "6.x"
+
+      - name: 🏷️ Determine Version Number
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+
+      - name: 🛡️ Check version is not already released
+        id: version
+        env:
+          VERSION: v${{ steps.gitversion.outputs.majorMinorPatch }}
+          MAJOR: v${{ steps.gitversion.outputs.major }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" > /dev/null; then
+            echo "::error::Tag ${VERSION} already exists but GitVersion still computes it, so the tag is probably not reachable from main. Refusing to move a published tag."
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "major=${MAJOR}" >> "$GITHUB_OUTPUT"
+
+      - name: 🏷️ Create version tag and move major tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+          # Users can pin to the major version (e.g. @v2) and get every
+          # backwards-compatible fix, as is conventional for GitHub Actions.
+          git tag -fa "${MAJOR}" -m "Release ${VERSION}"
+          git push --force origin "refs/tags/${MAJOR}"
+
+      - name: 📝 Create GitHub Release
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
