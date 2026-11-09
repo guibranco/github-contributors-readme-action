@@ -1,0 +1,8 @@
+workflow: GitHubFlow/v1
+mode: ContinuousDeployment
+# The fork continues the upstream 2.3.x line; the first release of the fork is v2.3.12.
+next-version: 2.3.12
+assembly-versioning-scheme: MajorMinorPatch
+assembly-file-versioning-scheme: MajorMinorPatch
+assembly-informational-format: '{MajorMinorPatch}{PreReleaseTagWithDash}+{ShortSha}'
+tag-prefix: '[vV]'
